@@ -20,7 +20,7 @@ def one(j):
     if time.time() > STOP:
         return ins, d, None
     u = "https://datafeed.dukascopy.com/datafeed/%s/%04d/%02d/%02d/BID_candles_min_1.bi5" % (ins, d.year, d.month - 1, d.day)
-    for k in range(6):
+    for k in range(int(os.environ.get("TRIES", "6"))):
         try:
             b = urllib.request.urlopen(urllib.request.Request(u, headers={"User-Agent": "Mozilla/5.0"}), timeout=60).read()
             raw = lzma.decompress(b) if b else b""
