@@ -1,5 +1,8 @@
 name: duka-tick
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+  push:
+    paths: [".github/workflows/duka_tick.yml"]
 jobs:
   pull:
     runs-on: ubuntu-latest
