@@ -1,14 +1,25 @@
-"""GitHub Actions shard of the Dukascopy TICK pull (user 2026-11-03): silver, palladium, copper, 2020-01-01 -> 2025-12-31, hourly tick
-files reduced to one mid price per second (last tick in the second; raw integer price, scaled later). Saturdays skipped (market shut).
-Takes every (ins, day, hour) not in done_tick.txt, keeps jobs[SHARD::NSHARD], writes tick_<k>.sqlite: s1(ins, ts, mid), done(ins, day, hour, n)."""
+"""GitHub Actions shard of the Dukascopy TICK pull. Round 2 (2026-11-11): BTC, ETH, gold, silver gaps, WTI, copper / palladium gap.
+Hourly tick files reduced to one mid price per second (last tick in the second; raw integer price, scaled later). Non-crypto skips
+Saturdays (market shut); crypto runs 7 days. NEWEST hours first. Takes every (ins, day, hour) not in done_tick.txt, keeps jobs[SHARD::NSHARD],
+writes tick_<k>.sqlite: s1(ins, ts, mid), done(ins, day, hour, n)."""
 import datetime as dt, lzma, os, sqlite3, struct, time, urllib.request, urllib.error
 from concurrent.futures import ThreadPoolExecutor
 K, N = int(os.environ["SHARD"]), int(os.environ["NSHARD"])
-INS = ["XAGUSD", "XPDCMDUSD", "COPPERCMDUSD"]
+D = dt.date; END = dt.date.today() - dt.timedelta(days=1)
+RANGES = {"BTCUSD": [(D(2017, 5, 1), END)], "ETHUSD": [(D(2017, 12, 1), END)], "XAUUSD": [(D(2003, 5, 1), END)],
+          "XAGUSD": [(D(2003, 5, 1), D(2019, 12, 31)), (D(2025, 2, 18), END)], "LIGHTCMDUSD": [(D(2018, 1, 1), END)],
+          "COPPERCMDUSD": [(D(2025, 2, 20), END)], "XPDCMDUSD": [(D(2025, 2, 20), END)]}
+CRYPTO = {"BTCUSD", "ETHUSD"}
 done = {tuple(l.split()) for l in open("done_tick.txt") if l.strip()} if os.path.exists("done_tick.txt") else set()
-d0, d1 = dt.date(2020, 1, 1), dt.date(2025, 12, 31)
-JOBS = [(i, d0 + dt.timedelta(days=k), h) for k in range((d1 - d0).days + 1) for i in INS for h in range(24)
-        if (d0 + dt.timedelta(days=k)).weekday() != 5 and (i, str(d0 + dt.timedelta(days=k)), str(h)) not in done][K::N]
+JOBS = []
+for ins, rr in RANGES.items():
+    for a, b in rr:
+        for k in range((b - a).days + 1):
+            d = a + dt.timedelta(days=k)
+            if (ins in CRYPTO or d.weekday() != 5):
+                JOBS += [(ins, d, h) for h in range(24) if (ins, str(d), str(h)) not in done]
+JOBS.sort(key=lambda j: (j[1], j[2], j[0]), reverse=True)                                  # newest first
+JOBS = JOBS[K::N]
 STOP = time.time() + float(os.environ.get("MAX_MIN", "330")) * 60
 c = sqlite3.connect("tick_%d.sqlite" % K)
 c.executescript("CREATE TABLE IF NOT EXISTS s1(ins TEXT, ts INT, mid INT, PRIMARY KEY(ins, ts)) WITHOUT ROWID;"

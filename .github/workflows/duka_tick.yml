@@ -1,4 +1,4 @@
-name: duka-tick
+name: duka-tick  # round 2: BTC ETH XAU XAG WTI Cu XPD
 on:
   workflow_dispatch:
   push:
@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: python3 -u shard_tick.py
-        env: {SHARD: "${{ matrix.shard }}", NSHARD: "60", MAX_MIN: "330", TRIES: "15", DUKA_THREADS: "3"}
+        env: {SHARD: "${{ matrix.shard }}", NSHARD: "60", MAX_MIN: "330", TRIES: "15", DUKA_THREADS: "5"}
       - uses: actions/upload-artifact@v4
         if: always()
         with: {name: "tick_${{ matrix.shard }}", path: "tick_${{ matrix.shard }}.sqlite", retention-days: 5}
